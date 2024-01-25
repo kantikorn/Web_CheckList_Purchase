@@ -37,10 +37,12 @@ Public Class WebForm1
 
     End Sub
 
-    ' เมทอดที่เรียกเมื่อคลิกปุ่ม Submit
-    Protected Sub submit_Click(sender As Object, e As EventArgs) Handles submit.Click
-        ' ดึงวันที่ที่เลือกจาก DropDownList
+    Protected Sub submit_Click(sender As Object, e As EventArgs) Handles btn_submit.Click
+        ' ... (Your existing code)
         Dim selectedDate As String = dd_dateinput.SelectedValue
+
+        ' สร้าง DataTable เพื่อเก็บข้อมูล
+        Dim dt As New DataTable()
 
         ' เชื่อมต่อกับฐานข้อมูล
         Using con As New SqlConnection(connectionString)
@@ -48,26 +50,26 @@ Public Class WebForm1
 
             ' สร้างคำสั่ง SQL เพื่อดึงรายการสั่งซื้อสำหรับวันที่ที่เลือก
             Dim query As String = "SELECT Poh.PurchaseOrderID, Poh.EmployeeID, Poh.VendorID, Pod.OrderQty, Poh.OrderDate 
-                                     FROM Purchasing.PurchaseOrderHeader Poh 
-                                     JOIN Purchasing.PurchaseOrderDetail Pod ON Poh.PurchaseOrderID = Pod.PurchaseOrderID 
-                                    WHERE CONVERT(VARCHAR, OrderDate, 23) = @SelectedDate"
+                        FROM Purchasing.PurchaseOrderHeader Poh 
+                        JOIN Purchasing.PurchaseOrderDetail Pod ON Poh.PurchaseOrderID = Pod.PurchaseOrderID 
+                       WHERE CONVERT(VARCHAR, OrderDate, 23) = @SelectedDate"
 
-            ' สร้างคำสั่ง SQL เพื่อดึงผลรวมของ OrderQty สำหรับวันที่ที่เลือก
-            Dim querysum_Qty As String = "SELECT ISNULL(SUM(Pod.OrderQty), 0) AS TotalOrderQty " &
-                                          "FROM Purchasing.PurchaseOrderHeader Poh " &
-                                          "JOIN Purchasing.PurchaseOrderDetail Pod ON Poh.PurchaseOrderID = Pod.PurchaseOrderID " &
-                                          "WHERE CONVERT(DATE, Poh.OrderDate) = @SelectedDate"
-
-            ' ดำเนินการ Execute SQL commands
+            ' ดำเนินการ Execute SQL command
             Using cmd As New SqlCommand(query, con)
                 cmd.Parameters.AddWithValue("@SelectedDate", selectedDate)
 
-                ' Execute SQL command และเตรียมข้อมูลใน GridView
-                Using reader As SqlDataReader = cmd.ExecuteReader()
-                    GridView1.DataSource = reader
-                    GridView1.DataBind()
+                ' สร้าง DataAdapter เพื่อเตรียมข้อมูลใน DataTable
+                Using da As New SqlDataAdapter(cmd)
+                    ' เตรียมข้อมูลใน DataTable
+                    da.Fill(dt)
                 End Using
             End Using
+
+            ' สร้างคำสั่ง SQL เพื่อดึงผลรวมของ OrderQty สำหรับวันที่ที่เลือก
+            Dim querysum_Qty As String = "SELECT ISNULL(SUM(Pod.OrderQty), 0) AS TotalOrderQty " &
+                                      "FROM Purchasing.PurchaseOrderHeader Poh " &
+                                      "JOIN Purchasing.PurchaseOrderDetail Pod ON Poh.PurchaseOrderID = Pod.PurchaseOrderID " &
+                                      "WHERE CONVERT(DATE, Poh.OrderDate) = @SelectedDate"
 
             ' ดำเนินการ Execute SQL command เพื่อรับผลรวมของ OrderQty
             Using cmdSumQty As New SqlCommand(querysum_Qty, con)
@@ -77,10 +79,16 @@ Public Class WebForm1
                 Dim totalOrderQty As Integer = Convert.ToInt32(cmdSumQty.ExecuteScalar())
 
                 ' แสดงจำนวนรายการและผลรวม Qty
-                lbl_list_count.Text = "รวมป้อน " & GridView1.Rows.Count.ToString() & " รายการ"
-                lbl_sum_qty.Text = "รวม Qty = " & totalOrderQty.ToString()
+                lbl_listcount.Text = "รวมป้อน " & dt.Rows.Count.ToString() & " รายการ"
+                lbl_sumqty.Text = "รวม Qty = " & totalOrderQty.ToString()
             End Using
         End Using
+
+        ' และเอา DataTable เข้ากับ GridView
+        GridView1.DataSourceID = "" ' Set DataSourceId to an empty string
+        GridView1.DataSource = dt
+        GridView1.DataBind()
     End Sub
+
 
 End Class
